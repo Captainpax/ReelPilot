@@ -20,7 +20,7 @@ jobs:
       - run: python -m venv .venv
       - run: .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
       - run: .\scripts\build.ps1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ReelPilot-windows-x64
           path: |
