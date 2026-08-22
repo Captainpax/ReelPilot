@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reelpilot"
+version = "0.1.0b1"
+description = "A safe, observable Windows fishing assistant for Stardew Valley."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.14,<3.15"
+authors = [{name = "Captainpax"}]
+dependencies = [
+    "mss>=10.2,<11",
+    "numpy>=2.5,<3",
+    "opencv-python>=5,<6",
+    "pywin32>=312",
+    "rich>=14.1,<15",
+    "winrt-runtime>=3.2.1,<4",
+    "winrt-Windows.Foundation>=3.2.1,<4",
+    "winrt-Windows.Foundation.Collections>=3.2.1,<4",
+    "winrt-Windows.Globalization>=3.2.1,<4",
+    "winrt-Windows.Graphics.DirectX>=3.2.1,<4",
+    "winrt-Windows.Graphics.Imaging>=3.2.1,<4",
+    "winrt-Windows.Media.Ocr>=3.2.1,<4",
+    "winrt-Windows.Storage.Streams>=3.2.1,<4",
+    "winrt-Windows.System>=3.2.1,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.17,<2",
+    "pyinstaller>=6.20,<7",
+    "pytest>=9,<10",
+    "ruff>=0.12,<1",
+    "types-pywin32>=312",
+]
+
+[project.scripts]
+reelpilot = "reelpilot.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["reelpilot*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 96
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501", "RUF001"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+packages = ["reelpilot"]
+exclude = ["build", "dist"]

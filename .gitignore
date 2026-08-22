@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+target/
+native/reelpilot-input.exe
+recordings/
+private-fixtures/
+*.db
+*.db-shm
+*.db-wal
+*.log
