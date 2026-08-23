@@ -11,6 +11,12 @@ if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
     throw "Virtual environment not found. Run: py -3.14 -m venv .venv"
 }
 
+$PackageVersion = (& $Python -c 'from reelpilot import __version__; print(__version__)').Trim()
+$ReleaseVersion = $PackageVersion -replace 'b(\d+)$', '-beta.$1'
+if ($ReleaseVersion -notmatch '^\d+\.\d+\.\d+(?:-[a-z]+\.\d+)?$') {
+    throw "Cannot derive a release filename from package version: $PackageVersion"
+}
+
 foreach ($Target in @($BuildDirectory, $DistDirectory)) {
     $Parent = Split-Path -Parent $Target
     if ((Resolve-Path -LiteralPath $Parent).Path -ne $ProjectRoot) {
@@ -51,7 +57,7 @@ Copy-Item -LiteralPath (Join-Path $ProjectRoot 'PROVENANCE.md') -Destination $Ap
 
 & (Join-Path $ApplicationDirectory 'ReelPilot.Console.exe') --version
 
-$Archive = Join-Path $DistDirectory 'ReelPilot-v0.1.0-beta.1-windows-x64.zip'
+$Archive = Join-Path $DistDirectory "ReelPilot-v$ReleaseVersion-windows-x64.zip"
 Compress-Archive -LiteralPath $ApplicationDirectory -DestinationPath $Archive -CompressionLevel Optimal
 $Hash = (Get-FileHash -LiteralPath $Archive -Algorithm SHA256).Hash.ToLowerInvariant()
 "$Hash  $(Split-Path -Leaf $Archive)" | Set-Content -LiteralPath (Join-Path $DistDirectory 'SHA256SUMS.txt') -Encoding utf8

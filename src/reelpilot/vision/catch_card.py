@@ -1,3 +1,5 @@
+"""Locate catch-result cards and read conservative English text with Windows OCR."""
+
 from __future__ import annotations
 
 import asyncio
@@ -8,86 +10,20 @@ import cv2
 import numpy as np
 
 from ..domain import CatchObservation, RecognitionStatus, ResultType
+from ..stats.catalog import FISH_NAMES, ITEM_NAMES
 
-# Factual interoperability identifiers only; no game descriptions or assets.
-FISH_NAMES = (
-    "Albacore",
-    "Anchovy",
-    "Angler",
-    "Blobfish",
-    "Blue Discus",
-    "Bream",
-    "Bullhead",
-    "Carp",
-    "Catfish",
-    "Chub",
-    "Crimsonfish",
-    "Dorado",
-    "Eel",
-    "Flounder",
-    "Ghostfish",
-    "Glacierfish",
-    "Goby",
-    "Halibut",
-    "Herring",
-    "Ice Pip",
-    "Largemouth Bass",
-    "Lava Eel",
-    "Legend",
-    "Lingcod",
-    "Lionfish",
-    "Midnight Carp",
-    "Midnight Squid",
-    "Mutant Carp",
-    "Octopus",
-    "Perch",
-    "Pike",
-    "Pufferfish",
-    "Rainbow Trout",
-    "Red Mullet",
-    "Red Snapper",
-    "Salmon",
-    "Sandfish",
-    "Sardine",
-    "Scorpion Carp",
-    "Sea Cucumber",
-    "Shad",
-    "Slimejack",
-    "Smallmouth Bass",
-    "Spook Fish",
-    "Squid",
-    "Stingray",
-    "Stonefish",
-    "Sturgeon",
-    "Sunfish",
-    "Super Cucumber",
-    "Tiger Trout",
-    "Tilapia",
-    "Tuna",
-    "Void Salmon",
-    "Walleye",
-    "Woodskip",
+LENGTH_PATTERN = re.compile(
+    r"(?:Length\s*[.:;\]]?\s*)?(\d{1,3})\s*in\.?",
+    re.IGNORECASE,
 )
-ITEM_NAMES = (
-    "Bait",
-    "Broken CD",
-    "Broken Glasses",
-    "Coal",
-    "Driftwood",
-    "Green Algae",
-    "Joja Cola",
-    "Seaweed",
-    "Soggy Newspaper",
-    "Stone",
-    "Trash",
-    "White Algae",
-)
-LENGTH_PATTERN = re.compile(r"(?:Length\s*[:\]]?\s*)?(\d{1,3})\s*in\.?", re.IGNORECASE)
 QUANTITY_PATTERN = re.compile(r"(?:x|×)\s*(\d+)$", re.IGNORECASE)
 
 
 class CatchCardDetector:
+    """Locate purple fish cards or white instant-item bubbles by geometry."""
+
     def locate(self, frame: np.ndarray) -> tuple[int, int, int, int] | None:
+        """Return the best result-card bounds or ``None`` when no card is present."""
         hsv = cv2.cvtColor(frame[:, :, :3], cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(
             hsv,
@@ -112,12 +48,16 @@ class CatchCardDetector:
 
     @staticmethod
     def _locate_item_bubble(hsv: np.ndarray) -> tuple[int, int, int, int] | None:
+        # The live 1.6.15 result is a near-white speech bubble. A permissive beige
+        # mask connects it to the fish-shop facade behind the player, producing a
+        # single oversized contour. The bright/low-saturation paper color remains
+        # stable through nighttime lighting because UI pixels are not world-tinted.
         mask = cv2.inRange(
             hsv,
-            np.array((0, 0, 185), dtype=np.uint8),
-            np.array((179, 85, 255), dtype=np.uint8),
+            np.array((0, 0, 245), dtype=np.uint8),
+            np.array((179, 55, 255), dtype=np.uint8),
         )
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((7, 13), np.uint8))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((9, 21), np.uint8))
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         frame_height, frame_width = hsv.shape[:2]
         best: tuple[float, tuple[int, int, int, int]] | None = None
@@ -138,11 +78,14 @@ class CatchCardDetector:
 
 
 class CatchResultReader:
+    """Read English result text conservatively and reject ambiguous names."""
+
     def read(
         self,
         card: np.ndarray,
         bounds: tuple[int, int, int, int],
     ) -> CatchObservation:
+        """Classify OCR text, length, and quantity from a localized card crop."""
         try:
             raw_text = " ".join(self._recognize_windows_ocr(card).split())
         except Exception:
@@ -154,7 +97,9 @@ class CatchResultReader:
         length_inches = int(length_match.group(1)) if length_match else None
         result_type = ResultType.FISH if length_inches is not None else ResultType.ITEM
         title = raw_text[: length_match.start()].strip(" :-") if length_match else raw_text
-        title = re.sub(r"\bLength\s*[:\]]?\s*$", "", title, flags=re.IGNORECASE).strip()
+        title = re.sub(
+            r"\bLength\s*[.:;\]]?\s*$", "", title, flags=re.IGNORECASE
+        ).strip()
         quantity_match = QUANTITY_PATTERN.search(title)
         quantity = int(quantity_match.group(1)) if quantity_match else 1
         if quantity_match:

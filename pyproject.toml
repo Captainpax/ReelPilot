@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reelpilot"
-version = "0.1.0b1"
+version = "0.1.0b2"
 description = "A safe, observable Windows fishing assistant for Stardew Valley."
 readme = "README.md"
 license = "MIT"
@@ -52,8 +52,14 @@ target-version = "py314"
 line-length = 96
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
-ignore = ["E501", "RUF001"]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "D"]
+ignore = ["E501", "RUF001", "D203", "D213"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.mypy]
 python_version = "3.14"

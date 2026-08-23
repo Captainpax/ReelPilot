@@ -1,3 +1,5 @@
+"""Non-blocking rotating file logging configuration."""
+
 from __future__ import annotations
 
 import logging
@@ -7,6 +9,7 @@ from queue import Queue
 
 
 def configure_logging(log_directory: Path) -> tuple[logging.Logger, QueueListener]:
+    """Start a queue listener and return the application logger with its owner."""
     log_directory.mkdir(parents=True, exist_ok=True)
     messages: Queue[logging.LogRecord] = Queue()
     file_handler = RotatingFileHandler(

@@ -1,3 +1,5 @@
+"""GUI launcher that opens the packaged ReelPilot console in a dedicated terminal."""
+
 from __future__ import annotations
 
 import base64
@@ -8,10 +10,12 @@ from pathlib import Path
 
 
 def quote_powershell(value: str) -> str:
+    """Quote one literal PowerShell argument without evaluation."""
     return "'" + value.replace("'", "''") + "'"
 
 
 def encoded_launch_command(core_path: Path, arguments: list[str]) -> str:
+    """Build a UTF-16LE encoded script that safely forwards launcher arguments."""
     argument_array = ",".join(quote_powershell(value) for value in arguments)
     script = (
         f"$core={quote_powershell(str(core_path))};"
@@ -26,6 +30,7 @@ def encoded_launch_command(core_path: Path, arguments: list[str]) -> str:
 
 
 def main() -> int:
+    """Locate the packaged core and launch it in Windows Terminal or PowerShell."""
     root = (
         Path(sys.executable).resolve().parent
         if getattr(sys, "frozen", False)

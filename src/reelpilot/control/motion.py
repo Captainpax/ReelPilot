@@ -1,3 +1,5 @@
+"""Confidence-aware least-squares motion estimation over timestamped positions."""
+
 from __future__ import annotations
 
 from collections import deque
@@ -6,6 +8,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class MotionSample:
+    """Store one timestamped and confidence-scored pixel position."""
+
     timestamp_seconds: float
     position_pixels: float
     confidence: float
@@ -13,6 +17,8 @@ class MotionSample:
 
 @dataclass(frozen=True, slots=True)
 class MotionEstimate:
+    """Describe filtered position, velocity, and acceleration in pixel units."""
+
     position_pixels: float
     velocity_pixels_per_second: float
     acceleration_pixels_per_second_squared: float
@@ -22,10 +28,12 @@ class MotionEstimator:
     """Timestamp-aware five-sample estimator with confidence and jump rejection."""
 
     def __init__(self, *, maximum_samples: int = 5) -> None:
+        """Create an estimator retaining at most ``maximum_samples`` observations."""
         self._samples: deque[MotionSample] = deque(maxlen=maximum_samples)
         self._previous_velocity = 0.0
 
     def reset(self) -> None:
+        """Discard motion history and accumulated velocity state."""
         self._samples.clear()
         self._previous_velocity = 0.0
 
@@ -36,6 +44,16 @@ class MotionEstimator:
         confidence: float,
         bar_length_pixels: int,
     ) -> MotionEstimate:
+        """Filter one sample, reject implausible jumps, and return an estimate.
+
+        Examples:
+            >>> estimator = MotionEstimator()
+            >>> estimator.update(100.0, 0.0, 1.0, 96).position_pixels
+            100.0
+            >>> estimator.update(104.0, 0.02, 1.0, 96).velocity_pixels_per_second > 0
+            True
+
+        """
         if self._samples:
             previous = self._samples[-1]
             elapsed_seconds = max(0.001, timestamp_seconds - previous.timestamp_seconds)
@@ -71,6 +89,7 @@ class MotionEstimator:
         return estimate
 
     def estimate(self) -> MotionEstimate:
+        """Estimate current motion without adding another sample."""
         if not self._samples:
             return MotionEstimate(0.0, 0.0, 0.0)
         if len(self._samples) == 1:

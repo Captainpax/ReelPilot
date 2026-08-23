@@ -1,3 +1,5 @@
-from .engine import AutomationEngine
+"""Public automation state-machine and calibration services."""
 
-__all__ = ["AutomationEngine"]
+from .engine import AutomationEngine, EngineResult
+
+__all__ = ["AutomationEngine", "EngineResult"]

@@ -3,6 +3,12 @@
 ReelPilot is a newly authored, clean-room-style implementation based on observable game
 behavior and a written functional specification.
 
+Its purpose is educational: the project demonstrates Python application design, Rust and
+Windows input safety, OpenCV screen vision, deterministic feedback control, automation,
+SQLite, concurrency, packaging, and QA. It is intended for private single-player learning,
+not competitive play, leaderboards, anti-cheat bypasses, or gaining an advantage over
+other players.
+
 ## Excluded material
 
 The public repository and release must not contain:
@@ -25,8 +31,14 @@ implementation material is not redistributed by ReelPilot.
 - Synthetic tests and terminal-only documentation screenshots.
 - Packaging, CI, and release scripts.
 
-The fish and item catalog contains factual interoperability names only. It includes no
-descriptions, art, game data files, or extracted font data.
+The fish and item catalog contains manually authored factual interoperability metadata:
+English canonical names, qualified identifiers, base sell prices, numeric minigame
+difficulty, and motion types for the supported vanilla version. It was validated against
+the user's installed Stardew Valley 1.6.15.24356 data schemas and the public
+[fish-data](https://stardewvalleywiki.com/Modding%3AFish_data),
+[object-data](https://stardewvalleywiki.com/Modding%3AObjects), and
+[difficulty-tag](https://stardewvalleywiki.com/Modding%3AContext_tags) documentation. It
+includes no descriptions, art, game data files, or extracted font data.
 
 ## Private validation
 

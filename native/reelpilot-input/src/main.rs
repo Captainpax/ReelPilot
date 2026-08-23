@@ -1,7 +1,14 @@
+//! Fail-safe native mouse helper for ReelPilot's 20 ms fishing control cadence.
+//!
+//! Python sends a compact versioned protocol over inherited standard input. The helper
+//! focuses Stardew, pulses the left mouse button to a deadline, and releases the button
+//! on idle, shutdown, EOF, invalid protocol data, panic, or process exit.
+
 #![cfg_attr(not(target_os = "windows"), allow(dead_code))]
 
 #[cfg(target_os = "windows")]
 mod windows_helper {
+    //! Windows implementation and binary protocol decoder.
     use std::hint::spin_loop;
     use std::io::{self, Read, Write};
     use std::sync::mpsc::{self, TryRecvError};
@@ -24,9 +31,16 @@ mod windows_helper {
     const OP_RELEASE: u8 = 3;
     const OP_SHUTDOWN: u8 = 4;
     const CONTROL_INTERVAL: Duration = Duration::from_millis(20);
+    // A nominal 100% duty cycle must remain down across cycle boundaries. Sending
+    // mouse-up and mouse-down back-to-back every 20 ms can be interpreted by the
+    // game as clicks rather than a sustained hold, leaving the fishing bar pinned
+    // at the bottom even while the controller requests maximum lift.
+    const CONTINUOUS_HOLD_THRESHOLD: f32 = 0.98;
 
     #[derive(Clone, Copy, Debug, PartialEq)]
     enum Command {
+        // Only the newest command matters to a pulse cycle; the receiver drains its
+        // queue before acting so stale duty values never accumulate latency.
         Idle,
         Duty(f32),
         Press,
@@ -35,6 +49,7 @@ mod windows_helper {
     }
 
     struct MouseGuard {
+        /// Track the helper's believed state and guarantee mouse-up through `Drop`.
         is_down: bool,
     }
 
@@ -61,6 +76,8 @@ mod windows_helper {
     }
 
     pub fn run() -> i32 {
+        // Validate and prepare the target before reporting READY. Python therefore
+        // cannot mistake a partially initialized helper for a safe input controller.
         let window_handle = match parse_window_handle() {
             Ok(value) => value,
             Err(message) => {
@@ -114,6 +131,13 @@ mod windows_helper {
                         if duty > 0.0 {
                             let _ = prepare_window(window_handle);
                             let _ = mouse.set(true);
+                            if should_hold_continuously(duty) {
+                                // Preserve mouse-down into the next cycle. A later
+                                // lower-duty, idle, release, shutdown, EOF, or panic
+                                // path still sends mouse-up through `MouseGuard`.
+                                wait_until(cycle_started + CONTROL_INTERVAL);
+                                continue;
+                            }
                             wait_until(cycle_started + CONTROL_INTERVAL.mul_f32(duty));
                         }
                         let _ = mouse.set(false);
@@ -189,11 +213,25 @@ mod windows_helper {
         if unsafe { GetWindowRect(window_handle, &mut bounds) } == 0 {
             return Err(io::Error::last_os_error());
         }
+        let (cursor_x, cursor_y) = cursor_target(bounds);
         unsafe {
-            SetCursorPos(bounds.right - 30, bounds.bottom - 30);
+            SetCursorPos(cursor_x, cursor_y);
             SetForegroundWindow(window_handle);
         }
         Ok(())
+    }
+
+    fn cursor_target(bounds: RECT) -> (i32, i32) {
+        // The outer bottom-right corner overlaps Stardew's energy HUD and the
+        // bottom toolbar at the supported window size.  A 75%/75% point remains
+        // in the game world while still staying away from center-screen dialogs.
+        let width = (bounds.right - bounds.left).max(4);
+        let height = (bounds.bottom - bounds.top).max(4);
+        (bounds.left + width * 3 / 4, bounds.top + height * 3 / 4)
+    }
+
+    fn should_hold_continuously(duty_ratio: f32) -> bool {
+        duty_ratio >= CONTINUOUS_HOLD_THRESHOLD
     }
 
     fn send_mouse(down: bool) -> io::Result<()> {
@@ -280,6 +318,24 @@ mod windows_helper {
                 receiver.into_iter().collect::<Vec<_>>(),
                 vec![Command::Press, Command::Release, Command::Shutdown,]
             );
+        }
+
+        #[test]
+        fn cursor_target_avoids_hud_and_window_edges() {
+            let bounds = RECT {
+                left: 100,
+                top: 50,
+                right: 1380,
+                bottom: 810,
+            };
+            assert_eq!(cursor_target(bounds), (1060, 620));
+        }
+
+        #[test]
+        fn near_full_duty_uses_a_continuous_hold() {
+            assert!(!should_hold_continuously(0.979));
+            assert!(should_hold_continuously(0.98));
+            assert!(should_hold_continuously(1.0));
         }
     }
 }
